@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>AI Food Assistant</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f6f7f9;
+      margin: 0;
+      padding: 20px;
+    }
+    h1, h2 {
+      margin-top: 0;
+    }
+    .box {
+      background: #fff;
+      padding: 16px;
+      margin-bottom: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    }
+    textarea, input[type="text"] {
+      width: 100%;
+      padding: 8px;
+      margin-top: 8px;
+      box-sizing: border-box;
+    }
+    button {
+      margin-top: 10px;
+      padding: 8px 16px;
+      cursor: pointer;
+    }
+    ul {
+      padding-left: 20px;
+    }
+    pre {
+      background: #111;
+      color: #0f0;
+      padding: 12px;
+      white-space: pre-wrap;
+      min-height: 80px;
+    }
+  </style>
+</head>
+<body>
+
+<h1>🍽 AI Food Assistant</h1>
+
+<!-- ХОЛОДИЛЬНИК -->
+<div class="box">
+  <h2>📦 Холодильник</h2>
+  <button onclick="loadFridge()">Обновить</button>
+  <ul id="fridge"></ul>
+</div>
+
+<!-- ЧЕК (ТЕКСТ) -->
+<div class="box">
+  <h2>🧾 Чек (текст)</h2>
+  <textarea id="receiptText" rows="5" placeholder="Вставь текст чека"></textarea>
+  <button onclick="sendReceiptText()">Добавить продукты</button>
+</div>
+
+<!-- ЧЕК (ФОТО) -->
+<div class="box">
+  <h2>📷 Чек (фото)</h2>
+  <input type="file" id="receiptImage" />
+  <button onclick="sendReceiptImage()">Загрузить фото</button>
+</div>
+
+<!-- ЧАТ -->
+<div class="box">
+  <h2>🤖 AI Food Chat (streaming)</h2>
+  <input type="text" id="chatInput" placeholder="Что приготовить?" />
+  <button onclick="sendChat()">Отправить</button>
+  <pre id="chatOutput"></pre>
+</div>
+
+<script>
+const API = "http://127.0.0.1:8000/api";
+
+/* ---------- ХОЛОДИЛЬНИК ---------- */
+async function loadFridge() {
+  const res = await fetch(`${API}/fridge/`);
+  const data = await res.json();
+  const ul = document.getElementById("fridge");
+  ul.innerHTML = "";
+
+  if (data.length === 0) {
+    ul.innerHTML = "<li>Холодильник пуст</li>";
+    return;
+  }
+
+  data.forEach(item => {
+    const li = document.createElement("li");
+    li.textContent = `${item.name} — ${item.quantity} (${item.category})`;
+    ul.appendChild(li);
+  });
+}
+
+/* ---------- ЧЕК ТЕКСТ ---------- */
+async function sendReceiptText() {
+  const text = document.getElementById("receiptText").value;
+  if (!text) return alert("Вставь текст чека");
+
+  await fetch(`${API}/receipt/text/`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text })
+  });
+
+  document.getElementById("receiptText").value = "";
+  loadFridge();
+}
+
+/* ---------- ЧЕК ФОТО ---------- */
+async function sendReceiptImage() {
+  const file = document.getElementById("receiptImage").files[0];
+  if (!file) return alert("Выбери файл");
+
+  const formData = new FormData();
+  formData.append("image", file);
+
+  await fetch(`${API}/receipt/image/`, {
+    method: "POST",
+    body: formData
+  });
+
+  document.getElementById("receiptImage").value = "";
+  loadFridge();
+}
+
+/* ---------- ЧАТ STREAMING ---------- */
+async function sendChat() {
+  const input = document.getElementById("chatInput");
+  const output = document.getElementById("chatOutput");
+  const message = input.value;
+
+  if (!message) return;
+
+  output.textContent = "";
+  input.value = "";
+
+  const res = await fetch(`${API}/chat/stream/`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message })
+  });
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    output.textContent += decoder.decode(value);
+  }
+}
+
+/* INIT */
+loadFridge();
+</script>
+
+</body>
+</html>
