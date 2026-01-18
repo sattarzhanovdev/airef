@@ -1,10 +1,4 @@
-from openai import OpenAI
-import os
-
-client = OpenAI(
-    base_url="https://router.huggingface.co/v1",
-    api_key=os.environ.get("HF_TOKEN"),
-)
+from food.services.openai_client import get_openai_client
 
 SYSTEM_PROMPT = """
 Ты — помощник по очистке чеков.
@@ -29,6 +23,8 @@ SYSTEM_PROMPT = """
 """
 
 def extract_food_products_from_receipt(raw_text: str) -> list[str]:
+    client = get_openai_client()  # ← КЛЮЧЕВОЕ ИЗМЕНЕНИЕ
+
     response = client.chat.completions.create(
         model="openai/gpt-oss-120b:groq",
         messages=[
@@ -43,10 +39,8 @@ def extract_food_products_from_receipt(raw_text: str) -> list[str]:
 
     content = response.choices[0].message.content.strip()
 
-    products = [
+    return [
         line.strip()
         for line in content.splitlines()
         if line.strip()
     ]
-
-    return products
