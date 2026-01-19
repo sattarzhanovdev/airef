@@ -33,15 +33,19 @@ class FoodChatStreamView(APIView):
         )
 
         def stream():
-            try:
-                response = stream_food_answer(message, fridge_items)
-                for chunk in response:
-                    delta = chunk.choices[0].delta.content
-                    if delta:
-                        yield delta
-            except Exception as e:
-                # ❗ ВАЖНО: yield, а не raise
-                yield "\n[LLM is not configured or unavailable]\n"
+          response = stream_food_answer(message, fridge_items)
+
+          if response is None:
+              yield "[LLM is not configured or unavailable]"
+              return
+
+          try:
+              for chunk in response:
+                  delta = chunk.choices[0].delta.content
+                  if delta:
+                      yield delta
+          except Exception:
+              yield "\n[LLM stream error]\n"
 
         return StreamingHttpResponse(
             stream(),

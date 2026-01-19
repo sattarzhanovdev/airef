@@ -24,7 +24,7 @@ def get_client():
 def stream_food_answer(user_message, fridge_items):
     client = get_client()
     if not client:
-        raise RuntimeError("OpenAI client not configured")
+        return None   # ❗ НИКАКИХ raise
 
     fridge_text = ", ".join(fridge_items) or "Холодильник пуст"
 
@@ -43,7 +43,7 @@ def stream_food_answer(user_message, fridge_items):
     ]
 
     return client.chat.completions.create(
-        model="gpt-4o-mini",  # или groq модель
+        model="gpt-4o-mini",
         messages=messages,
         stream=True,
     )
