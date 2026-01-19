@@ -1,6 +1,17 @@
 import os
 from openai import OpenAI
 
+def get_client():
+    token = os.environ.get("HF_TOKEN")
+    if not token:
+        raise RuntimeError("HF_TOKEN environment variable is not set")
+
+    return OpenAI(
+        base_url="https://router.huggingface.co/v1",
+        api_key=token,
+    )
+
+
 SYSTEM_PROMPT = """
 Ты — AI Food Assistant.
 
@@ -14,17 +25,8 @@ SYSTEM_PROMPT = """
 - Ты не врач и не несёшь ответственности
 """
 
-def get_client():
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        return None
-    return OpenAI(api_key=api_key)
-
-
 def stream_food_answer(user_message, fridge_items):
-    client = get_client()
-    if not client:
-        return None   # ❗ НИКАКИХ raise
+    client = get_client()   # ← создаём ТУТ, а не при импорте
 
     fridge_text = ", ".join(fridge_items) or "Холодильник пуст"
 
@@ -43,7 +45,7 @@ def stream_food_answer(user_message, fridge_items):
     ]
 
     return client.chat.completions.create(
-        model="gpt-4o-mini",
+        model="openai/gpt-oss-120b:groq",
         messages=messages,
         stream=True,
     )
