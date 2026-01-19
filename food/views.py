@@ -9,10 +9,15 @@ from food.services.receipt_parser import parse_receipt
 from food.services.fridge import add_to_fridge
 from rest_framework.parsers import MultiPartParser, FormParser
 from food.services.ocr import extract_text_from_image
-from food.services.receipt_llm_cleaner import extract_food_products_from_receipt
+from .services.receipt_llm_cleaner import extract_food_products_from_receipt
+
+from django.shortcuts import get_object_or_404
+from .models import FridgeItem, Product
+from rest_framework.permissions import AllowAny
 
 
 class FoodChatStreamView(APIView):
+    permission_classes = [AllowAny]
     def post(self, request):
         message = request.data.get("message")
 
@@ -40,6 +45,7 @@ class FoodChatStreamView(APIView):
 
 
 class ReceiptView(APIView):
+  
     def post(self, request):
         text = request.data.get("text", "")
         products = parse_receipt(text)
@@ -53,19 +59,85 @@ class ReceiptView(APIView):
 
 
 class FridgeView(APIView):
+    permission_classes = [AllowAny]
+
     def get(self, request):
         items = FridgeItem.objects.select_related("product")
         return Response([
             {
+                "id": i.id,
                 "name": i.product.name,
                 "quantity": i.quantity,
                 "category": i.product.category,
             }
             for i in items
         ])
+        
+    def post(self, request):
+        data = request.data
 
+        name = data.get("name")
+        quantity = data.get("quantity")
+        category = data.get("category")
+
+        if not name or not quantity:
+            return Response(
+                {"error": "name и quantity обязательны"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        product, _ = Product.objects.get_or_create(
+            name=name,
+            defaults={"category": category or "Другое"},
+        )
+
+        item, created = FridgeItem.objects.get_or_create(
+            product=product,
+            defaults={"quantity": quantity},
+        )
+
+        if not created:
+            item.quantity = quantity
+            item.save()
+
+        return Response(
+            {
+                "id": item.id,
+                "name": product.name,
+                "quantity": item.quantity,
+                "category": product.category,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+    def put(self, request, pk):
+        item = get_object_or_404(FridgeItem, pk=pk)
+        data = request.data
+
+        product, _ = Product.objects.get_or_create(
+            name=data.get("name"),
+            defaults={"category": data.get("category", "")},
+        )
+
+        item.product = product
+        item.quantity = data.get("quantity", item.quantity)
+        item.save()
+
+        return Response({
+            "id": item.id,
+            "name": item.product.name,
+            "quantity": item.quantity,
+            "category": item.product.category,
+        })
+
+    def delete(self, request, pk):
+        item = get_object_or_404(FridgeItem, pk=pk)
+        item.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 class ReceiptImageView(APIView):
+    permission_classes = [AllowAny]
+  
     """
     OCR по фото чека + добавление продуктов в холодильник
     """

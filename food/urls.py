@@ -11,4 +11,5 @@ urlpatterns = [
     path("receipt/text/", ReceiptView.as_view()),
     path("receipt/image/", ReceiptImageView.as_view()),
     path("fridge/", FridgeView.as_view()),
+    path("fridge/<int:pk>/", FridgeView.as_view()),
 ]
