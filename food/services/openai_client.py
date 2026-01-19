@@ -1,13 +1,8 @@
-# food/services/openai_client.py
 import os
 from openai import OpenAI
 
 def get_openai_client():
-    token = os.environ.get("HF_TOKEN")
-    if not token:
-        raise RuntimeError("HF_TOKEN environment variable is not set")
-
-    return OpenAI(
-        base_url="https://router.huggingface.co/v1",
-        api_key=token,
-    )
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        return None
+    return OpenAI(api_key=api_key)
